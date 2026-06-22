@@ -65,6 +65,13 @@ python -m app.main analyze --issue-id 1234 --dry-run
 
 Dry-run prints Markdown to the console and does not post a Redmine comment.
 
+On Windows PowerShell, switch the console to UTF-8 first if Russian text is displayed as mojibake:
+
+```powershell
+chcp 65001
+$env:PYTHONIOENCODING="utf-8"
+```
+
 ## Polling Mode
 
 ```powershell

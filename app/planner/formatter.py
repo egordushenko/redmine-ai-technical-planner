@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import re
+
 from app.llm.schemas import AnalysisResult, FileChangePlan
+
+
+def _strip_leading_number(value: str) -> str:
+    return re.sub(r"^\s*\d+[\.)]\s+", "", value).strip()
 
 
 def _list_items(items: list[str], empty: str = "- Не указано.") -> str:
     if not items:
         return empty
-    return "\n".join(f"{idx}. {item}" for idx, item in enumerate(items, start=1))
+    return "\n".join(f"{idx}. {_strip_leading_number(item)}" for idx, item in enumerate(items, start=1))
 
 
 def _bullet_items(items: list[str], empty: str = "- Не указано.") -> str:
     if not items:
         return empty
-    return "\n".join(f"- {item}" for item in items)
+    return "\n".join(f"- {_strip_leading_number(item)}" for item in items)
 
 
 def _format_file(item: FileChangePlan, index: int) -> str:

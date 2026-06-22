@@ -47,3 +47,19 @@ def test_formats_error_comment():
 
     assert "Не удалось выполнить анализ." in comment
     assert "missing mapping" in comment
+
+
+def test_strips_model_numbering_from_lists():
+    result = AnalysisResult(
+        task_understanding="Нужно исправить фильтр.",
+        files_to_change=[],
+        implementation_plan=["1. Добавить scope.", "2) Обновить view."],
+        verification_steps=["1. Проверить список."],
+        risks=["1. Возможен конфликт фильтров."],
+        analysis_limits=["1. Агент не выполнял код."],
+    )
+
+    comment = format_success_comment(result, model_name="gpt-test", timestamp="2026-06-22T12:00:00Z")
+
+    assert "1. 1." not in comment
+    assert "- 1." not in comment
