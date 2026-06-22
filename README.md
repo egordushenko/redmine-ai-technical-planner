@@ -73,6 +73,23 @@ python -m app.main poll
 
 Polling reads open issues assigned to the Redmine API user and processes them one by one.
 
+## Local Redmine Demo
+
+For a local portfolio demo, start Redmine with Docker:
+
+```powershell
+docker compose -f docker-compose.redmine.yml up -d
+```
+
+Then bootstrap a demo project and issue inside the container:
+
+```powershell
+docker cp scripts/bootstrap_redmine_demo.rb redmine-ai-planner-app:/tmp/bootstrap_redmine_demo.rb
+docker exec redmine-ai-planner-app bash -lc "bundle exec rails runner /tmp/bootstrap_redmine_demo.rb"
+```
+
+The bootstrap creates project `BudgetBot` with identifier `budgetbot` and a sample issue. It writes the Redmine API key into the container file volume; do not print that key in logs or commits.
+
 ## Security Notes
 
 - Issue text is treated as untrusted input.

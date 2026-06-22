@@ -1,0 +1,14 @@
+services:
+  redmine:
+    image: redmine:5.1
+    container_name: redmine-ai-planner-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - redmine_files:/usr/src/redmine/files
+      - redmine_sqlite:/usr/src/redmine/sqlite
+
+volumes:
+  redmine_files:
+  redmine_sqlite:
