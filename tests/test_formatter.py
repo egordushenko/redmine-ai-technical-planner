@@ -14,6 +14,7 @@ def test_formats_markdown_comment():
             )
         ],
         implementation_plan=["Проверить middleware.", "Добавить тест."],
+        effort_estimate="2-4 часа на реализацию и проверку.",
         verification_steps=["Проверить login flow."],
         risks=["Неясен формат сессии."],
         analysis_limits=["Агент не выполнял код."],
@@ -25,6 +26,8 @@ def test_formats_markdown_comment():
     assert "**Модель:** `gpt-test`" in comment
     assert "`src/auth.py`" in comment
     assert "Уверенность: high" in comment
+    assert "### 4. Оценка временных затрат" in comment
+    assert "2-4 часа" in comment
 
 
 def test_handles_empty_files_to_change():
@@ -54,6 +57,7 @@ def test_strips_model_numbering_from_lists():
         task_understanding="Нужно исправить фильтр.",
         files_to_change=[],
         implementation_plan=["1. Добавить scope.", "2) Обновить view."],
+        effort_estimate="1 день.",
         verification_steps=["1. Проверить список."],
         risks=["1. Возможен конфликт фильтров."],
         analysis_limits=["1. Агент не выполнял код."],

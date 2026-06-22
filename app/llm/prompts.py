@@ -30,6 +30,7 @@ Return only valid JSON matching this schema:
     }}
   ],
   "implementation_plan": ["string"],
+  "effort_estimate": "string",
   "verification_steps": ["string"],
   "risks": ["string"],
   "analysis_limits": ["string"]
@@ -39,11 +40,13 @@ Required output sections after formatting:
 1. Краткое понимание задачи
 2. Предполагаемые файлы для изменения
 3. План реализации
-4. Что проверить после изменений
-5. Риски и неопределённости
-6. Ограничения анализа
+4. Оценка временных затрат
+5. Что проверить после изменений
+6. Риски и неопределённости
+7. Ограничения анализа
 
 Do not invent files. Use only files from the provided repository context.
+Estimate effort as a realistic range in hours or days for a human developer, including implementation and basic verification. If confidence is low, say what the estimate depends on.
 
 Redmine issue:
 {issue_context}

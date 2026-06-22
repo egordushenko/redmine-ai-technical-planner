@@ -41,7 +41,41 @@ class RedmineClient:
         return Project.from_api(data["project"])
 
     def add_issue_comment(self, issue_id: int, markdown: str) -> None:
-        self._request("PUT", f"/issues/{issue_id}.json", json={"issue": {"notes": markdown}})
+        self.update_issue(issue_id, notes=markdown)
+
+    def update_issue(
+        self,
+        issue_id: int,
+        notes: str | None = None,
+        status_id: int | None = None,
+        done_ratio: int | None = None,
+        priority_id: int | None = None,
+    ) -> None:
+        issue: dict[str, Any] = {}
+        if notes is not None:
+            issue["notes"] = notes
+        if status_id is not None:
+            issue["status_id"] = status_id
+        if done_ratio is not None:
+            issue["done_ratio"] = done_ratio
+        if priority_id is not None:
+            issue["priority_id"] = priority_id
+        self._request("PUT", f"/issues/{issue_id}.json", json={"issue": issue})
+
+    def get_issue_status_id_by_name(self, name: str) -> int:
+        data = self._request("GET", "/issue_statuses.json")
+        return self._find_id_by_name(data.get("issue_statuses", []), name, "issue status")
+
+    def get_issue_priority_id_by_name(self, name: str) -> int:
+        data = self._request("GET", "/enumerations/issue_priorities.json")
+        return self._find_id_by_name(data.get("issue_priorities", []), name, "issue priority")
+
+    def _find_id_by_name(self, items: list[dict[str, Any]], name: str, label: str) -> int:
+        for item in items:
+            if str(item.get("name", "")).lower() == name.lower():
+                return int(item["id"])
+        available = ", ".join(str(item.get("name", "")) for item in items)
+        raise RedmineError(f"Redmine {label} not found by name {name!r}. Available: {available}")
 
     def list_open_assigned_issues(self, limit: int = 20) -> list[Issue]:
         data = self._request(

@@ -41,6 +41,10 @@ class Settings:
     log_level: str
     projects_yaml_path: Path
     post_errors_to_redmine: bool
+    redmine_update_issue_after_plan: bool
+    redmine_after_plan_status_name: str
+    redmine_after_plan_priority_name: str
+    redmine_after_plan_done_ratio: int
 
 
 def load_settings(env_path: Path | str = ".env") -> Settings:
@@ -60,4 +64,8 @@ def load_settings(env_path: Path | str = ".env") -> Settings:
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         projects_yaml_path=Path(os.getenv("PROJECTS_YAML_PATH", "./projects.yaml")),
         post_errors_to_redmine=_bool_env("POST_ERRORS_TO_REDMINE", False),
+        redmine_update_issue_after_plan=_bool_env("REDMINE_UPDATE_ISSUE_AFTER_PLAN", False),
+        redmine_after_plan_status_name=os.getenv("REDMINE_AFTER_PLAN_STATUS_NAME", "In Progress"),
+        redmine_after_plan_priority_name=os.getenv("REDMINE_AFTER_PLAN_PRIORITY_NAME", "High"),
+        redmine_after_plan_done_ratio=int(os.getenv("REDMINE_AFTER_PLAN_DONE_RATIO", "50")),
     )

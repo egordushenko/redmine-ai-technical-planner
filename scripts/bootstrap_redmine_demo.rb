@@ -16,6 +16,17 @@ admin.password_confirmation = "Admin123!"
 admin.must_change_passwd = false if admin.respond_to?(:must_change_passwd=)
 admin.save!
 
+bot = User.find_or_initialize_by(login: "ai_planner_bot")
+bot.firstname = "AI"
+bot.lastname = "Planner Bot"
+bot.mail = "ai-planner-bot@example.local"
+bot.language = "en"
+bot.status = Principal::STATUS_ACTIVE if defined?(Principal::STATUS_ACTIVE)
+bot.password = "Bot12345!"
+bot.password_confirmation = "Bot12345!"
+bot.must_change_passwd = false if bot.respond_to?(:must_change_passwd=)
+bot.save!
+
 project = Project.find_or_initialize_by(identifier: "budgetbot")
 project.name = "BudgetBot"
 project.description = "Demo project for Redmine AI Technical Planner."
@@ -29,6 +40,9 @@ project.trackers = [tracker] if project.trackers.empty? && tracker
 role = Role.find_by(name: "Manager") || Role.where(builtin: 0).first
 if role && !Member.exists?(project_id: project.id, user_id: admin.id)
   Member.create!(project: project, principal: admin, roles: [role])
+end
+if role && !Member.exists?(project_id: project.id, user_id: bot.id)
+  Member.create!(project: project, principal: bot, roles: [role])
 end
 
 issue = Issue.find_or_initialize_by(
@@ -51,8 +65,8 @@ issue.description = <<~TEXT
 TEXT
 issue.save!
 
-token = Token.find_by(user: admin, action: "api")
-token ||= Token.create!(user: admin, action: "api", value: Token.generate_token_value)
+token = Token.find_by(user: bot, action: "api")
+token ||= Token.create!(user: bot, action: "api", value: Token.generate_token_value)
 File.write("/usr/src/redmine/files/redmine_api_key.txt", token.value)
 File.write(
   "/usr/src/redmine/files/bootstrap_info.txt",

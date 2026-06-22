@@ -12,6 +12,7 @@ from app.storage.state import StateStore
 class FakeRedmineClient:
     def __init__(self):
         self.comments: list[tuple[int, str]] = []
+        self._return_refreshed_issue = False
         self.issue = Issue(
             id=123,
             subject="Fix login redirect",
@@ -19,9 +20,18 @@ class FakeRedmineClient:
             project=Project(id=1, name="Demo", identifier="demo"),
             updated_on="2026-06-22T10:00:00Z",
         )
+        self.refreshed_issue = Issue(
+            id=123,
+            subject=self.issue.subject,
+            description=self.issue.description,
+            project=self.issue.project,
+            updated_on="2026-06-22T10:01:00Z",
+        )
 
     def get_issue(self, issue_id: int) -> Issue:
         assert issue_id == 123
+        if self._return_refreshed_issue:
+            return self.refreshed_issue
         return self.issue
 
     def get_project(self, project_id: int) -> Project:
@@ -29,6 +39,19 @@ class FakeRedmineClient:
 
     def add_issue_comment(self, issue_id: int, markdown: str) -> None:
         self.comments.append((issue_id, markdown))
+
+    def update_issue(self, issue_id: int, **fields) -> None:
+        self.comments.append((issue_id, fields.get("notes", "")))
+        self.updated_fields = fields
+        self._return_refreshed_issue = True
+
+    def get_issue_status_id_by_name(self, name: str) -> int:
+        assert name == "In Progress"
+        return 2
+
+    def get_issue_priority_id_by_name(self, name: str) -> int:
+        assert name == "High"
+        return 3
 
 
 class FakeLLMClient:
@@ -82,6 +105,10 @@ def _settings(tmp_path: Path) -> Settings:
         log_level="INFO",
         projects_yaml_path=tmp_path / "projects.yaml",
         post_errors_to_redmine=False,
+        redmine_update_issue_after_plan=False,
+        redmine_after_plan_status_name="In Progress",
+        redmine_after_plan_priority_name="High",
+        redmine_after_plan_done_ratio=50,
     )
 
 
@@ -122,3 +149,21 @@ def test_analyze_issue_skips_unchanged_processed_issue(tmp_path: Path):
 
     assert output.skipped
     assert not redmine.comments
+
+
+def test_analyze_issue_updates_redmine_fields_after_plan(tmp_path: Path):
+    repo = tmp_path / "repos" / "demo-repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "auth.py").write_text("def login_callback(): pass\n", encoding="utf-8")
+    settings = _settings(tmp_path)
+    settings = Settings(**{**settings.__dict__, "redmine_update_issue_after_plan": True})
+    redmine = FakeRedmineClient()
+    analyzer = Analyzer(settings, redmine, FakeRepoManager(repo), FakeLLMClient(), StateStore(settings.state_db_path))
+
+    output = analyzer.analyze_issue(123, dry_run=False)
+
+    assert output.posted
+    assert redmine.updated_fields["status_id"] == 2
+    assert redmine.updated_fields["done_ratio"] == 50
+    assert redmine.updated_fields["priority_id"] == 3
+    assert StateStore(settings.state_db_path).is_already_processed(123, redmine.refreshed_issue.updated_on)

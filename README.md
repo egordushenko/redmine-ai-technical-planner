@@ -57,6 +57,10 @@ Edit `.env` and `projects.yaml` before running against a real Redmine instance.
 - `MAX_TOTAL_CONTEXT_CHARS`: total repository context cap.
 - `STATE_DB_PATH`: SQLite state path.
 - `POST_ERRORS_TO_REDMINE`: whether analysis errors should be posted to Redmine.
+- `REDMINE_UPDATE_ISSUE_AFTER_PLAN`: whether successful analysis should update status, progress, and priority.
+- `REDMINE_AFTER_PLAN_STATUS_NAME`: status name to set after posting the plan, for example `In Progress`.
+- `REDMINE_AFTER_PLAN_PRIORITY_NAME`: priority name to set after posting the plan, for example `High`.
+- `REDMINE_AFTER_PLAN_DONE_RATIO`: progress percentage to set after posting the plan, for example `50`.
 
 ## projects.yaml Configuration
 
@@ -115,6 +119,7 @@ docker exec redmine-ai-planner-app bash -lc "bundle exec rails runner /tmp/boots
 ```
 
 The bootstrap creates project `BudgetBot` with identifier `budgetbot` and a sample issue. It writes the Redmine API key into the container file volume; do not print that key in logs or commits.
+The generated API key belongs to the demo user `ai_planner_bot`, so comments are posted by the bot user rather than the admin account.
 
 Run the real demo flow:
 

@@ -42,6 +42,7 @@ class LLMClient:
                     task_understanding=raw_text,
                     files_to_change=[],
                     implementation_plan=[],
+                    effort_estimate="Не удалось оценить: LLM вернул невалидный JSON.",
                     verification_steps=[],
                     risks=["LLM вернул невалидный JSON; опубликован raw fallback."],
                     analysis_limits=["Структурированный разбор недоступен."],

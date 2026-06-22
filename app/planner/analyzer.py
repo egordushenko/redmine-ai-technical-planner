@@ -94,9 +94,19 @@ class Analyzer:
             markdown = format_success_comment(llm_response.result, self.settings.llm_model, timestamp)
             posted = False
             if not dry_run:
-                self.redmine_client.add_issue_comment(issue.id, markdown)
+                if self.settings.redmine_update_issue_after_plan:
+                    self.redmine_client.update_issue(
+                        issue.id,
+                        notes=markdown,
+                        status_id=self.redmine_client.get_issue_status_id_by_name(self.settings.redmine_after_plan_status_name),
+                        done_ratio=self.settings.redmine_after_plan_done_ratio,
+                        priority_id=self.redmine_client.get_issue_priority_id_by_name(self.settings.redmine_after_plan_priority_name),
+                    )
+                else:
+                    self.redmine_client.add_issue_comment(issue.id, markdown)
                 posted = True
-                self.state_store.mark_processed(issue.id, issue.updated_on, project_identifier, sha256_text(markdown))
+                refreshed_issue = self.redmine_client.get_issue(issue.id)
+                self.state_store.mark_processed(issue.id, refreshed_issue.updated_on, project_identifier, sha256_text(markdown))
             logger.info("analysis finished", extra={"issue_id": issue.id, "comment_posted": posted})
             return AnalyzeOutput(markdown=markdown, posted=posted)
         except Exception as exc:

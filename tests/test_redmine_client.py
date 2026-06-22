@@ -61,6 +61,36 @@ def test_add_issue_comment_success():
     assert seen_payload == {"issue": {"notes": "hello"}}
 
 
+def test_update_issue_with_notes_and_fields():
+    seen_payload = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "PUT"
+        assert request.url.path == "/issues/123.json"
+        seen_payload.update(json.loads(request.content))
+        return httpx.Response(204)
+
+    client = RedmineClient("https://redmine.test", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+    client.update_issue(123, notes="hello", status_id=2, done_ratio=50, priority_id=3)
+
+    assert seen_payload == {"issue": {"notes": "hello", "status_id": 2, "done_ratio": 50, "priority_id": 3}}
+
+
+def test_list_issue_statuses_and_priorities():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/issue_statuses.json":
+            return httpx.Response(200, json={"issue_statuses": [{"id": 2, "name": "In Progress"}]})
+        if request.url.path == "/enumerations/issue_priorities.json":
+            return httpx.Response(200, json={"issue_priorities": [{"id": 3, "name": "High"}]})
+        raise AssertionError(request.url.path)
+
+    client = RedmineClient("https://redmine.test", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+    assert client.get_issue_status_id_by_name("In Progress") == 2
+    assert client.get_issue_priority_id_by_name("High") == 3
+
+
 def test_redmine_error_handling():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, json={"errors": ["boom"]})
