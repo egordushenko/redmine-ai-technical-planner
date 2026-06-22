@@ -6,6 +6,25 @@ CLI-agent for Redmine issues. It reads a Redmine issue, resolves its project to 
 
 The agent only prepares a plan for a human developer. It does not edit the target repository, create branches, run tests in the target project, or open pull requests.
 
+## Demo
+
+This repository includes a local Redmine demo that shows the full MVP workflow:
+
+1. A Redmine issue describes a feature request.
+2. The agent reads the issue through the Redmine REST API.
+3. It maps the Redmine project to a Git repository through `projects.yaml`.
+4. It scans the repository and sends only selected context to the LLM.
+5. It posts a technical implementation plan back to the same Redmine issue.
+
+Recommended portfolio assets:
+
+- `docs/assets/01-redmine-issue-before.png`: Redmine issue before running the agent.
+- `docs/assets/02-cli-run.png`: CLI execution.
+- `docs/assets/03-redmine-ai-comment.png`: generated AI technical plan in Redmine.
+- `docs/assets/demo.mp4`: 60-90 second walkthrough video.
+
+See [docs/demo.md](docs/demo.md) for the capture checklist and demo script.
+
 ## MVP Limitations
 
 - No embeddings or vector database.
@@ -96,6 +115,16 @@ docker exec redmine-ai-planner-app bash -lc "bundle exec rails runner /tmp/boots
 ```
 
 The bootstrap creates project `BudgetBot` with identifier `budgetbot` and a sample issue. It writes the Redmine API key into the container file volume; do not print that key in logs or commits.
+
+Run the real demo flow:
+
+```powershell
+chcp 65001
+$env:PYTHONIOENCODING="utf-8"
+python -m app.main analyze --issue-id 1
+```
+
+Then open `http://localhost:3000/issues/1` and check the generated comment.
 
 ## Security Notes
 
