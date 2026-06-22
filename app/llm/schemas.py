@@ -35,6 +35,7 @@ class AnalysisResult:
     task_understanding: str
     files_to_change: list[FileChangePlan] = field(default_factory=list)
     implementation_plan: list[str] = field(default_factory=list)
+    subtasks: list[str] = field(default_factory=list)
     effort_estimate: str = ""
     verification_steps: list[str] = field(default_factory=list)
     risks: list[str] = field(default_factory=list)
@@ -47,6 +48,7 @@ class AnalysisResult:
             task_understanding=str(data.get("task_understanding", "")),
             files_to_change=[FileChangePlan.from_dict(item) for item in data.get("files_to_change", [])],
             implementation_plan=[str(item) for item in data.get("implementation_plan", [])],
+            subtasks=[str(item) for item in data.get("subtasks", [])],
             effort_estimate=str(data.get("effort_estimate", "")),
             verification_steps=[str(item) for item in data.get("verification_steps", [])],
             risks=[str(item) for item in data.get("risks", [])],

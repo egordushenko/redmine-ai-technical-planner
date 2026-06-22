@@ -45,6 +45,7 @@ class Settings:
     redmine_after_plan_status_name: str
     redmine_after_plan_priority_name: str
     redmine_after_plan_done_ratio: int
+    redmine_create_subtasks_after_plan: bool
 
 
 def load_settings(env_path: Path | str = ".env") -> Settings:
@@ -68,4 +69,5 @@ def load_settings(env_path: Path | str = ".env") -> Settings:
         redmine_after_plan_status_name=os.getenv("REDMINE_AFTER_PLAN_STATUS_NAME", "In Progress"),
         redmine_after_plan_priority_name=os.getenv("REDMINE_AFTER_PLAN_PRIORITY_NAME", "High"),
         redmine_after_plan_done_ratio=int(os.getenv("REDMINE_AFTER_PLAN_DONE_RATIO", "50")),
+        redmine_create_subtasks_after_plan=_bool_env("REDMINE_CREATE_SUBTASKS_AFTER_PLAN", False),
     )

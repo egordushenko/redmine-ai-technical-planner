@@ -22,12 +22,15 @@ Save screenshots and video in `docs/assets/`.
    python -m app.main analyze --issue-id 1
    ```
 
-   The terminal should show Redmine API requests, repository scanning, the OpenRouter request, and successful completion. Do not show `.env` or API keys.
+The terminal should show Redmine API requests, repository scanning, the OpenRouter request, and successful completion. Do not show `.env` or API keys.
 
 3. `03-redmine-ai-comment.png`
    Refresh the Redmine issue and show the generated `AI technical plan` comment with likely files, implementation steps, verification steps, risks, and analysis limits.
 
-4. `demo.mp4`
+4. `04-redmine-subtasks.png`
+   Show the issue metadata after analysis: status `In Progress`, priority `High`, progress `50%`, and generated child issues under the parent task.
+
+5. `demo.mp4`
    Record a 60-90 second walkthrough:
 
    - Start on the Redmine issue.
@@ -35,12 +38,13 @@ Save screenshots and video in `docs/assets/`.
    - Run the CLI command.
    - Return to Redmine and refresh.
    - Show the generated technical plan.
+   - Show the generated child issues and updated issue status.
 
 ## Demo Script
 
 Use this narration:
 
-> This is Redmine AI Technical Planner. It connects Redmine tasks with the matching Git repository. Here I have a Redmine issue asking for a category filter in BudgetBot. I run the CLI agent with the issue id. The agent reads the issue, resolves the Redmine project to the BudgetBot repository, scans only relevant files, sends limited context to the LLM, and posts a technical plan back into the same Redmine issue. The result gives a developer likely files to inspect, what to change, verification steps, risks, and clear analysis limits. The agent does not modify code or create branches; it accelerates the first technical pass.
+> This is Redmine AI Technical Planner. It connects Redmine tasks with the matching Git repository. Here I have a Redmine issue asking for a category filter in BudgetBot. I run the CLI agent with the issue id. The agent reads the issue, resolves the Redmine project to the BudgetBot repository, scans only relevant files, sends limited context to the LLM, and posts a technical plan back into the same Redmine issue. It also moves the task to In Progress, sets progress to 50%, raises priority to High, and creates child issues from the generated subtasks. The result gives a developer likely files to inspect, what to change, verification steps, risks, effort estimate, and clear analysis limits. The agent does not modify code or create branches; it accelerates the first technical pass.
 
 ## What This Proves
 
@@ -49,6 +53,7 @@ Use this narration:
 - The agent avoids sending the whole repository to the LLM.
 - The output names likely files and explains why they matter.
 - The generated plan is posted back into the existing developer workflow.
+- Generated subtasks can become Redmine child issues for follow-up implementation work.
 
 ## Safety Notes
 

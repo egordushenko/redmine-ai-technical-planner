@@ -94,16 +94,22 @@ class Analyzer:
             markdown = format_success_comment(llm_response.result, self.settings.llm_model, timestamp)
             posted = False
             if not dry_run:
+                status_id = None
+                priority_id = None
                 if self.settings.redmine_update_issue_after_plan:
+                    status_id = self.redmine_client.get_issue_status_id_by_name(self.settings.redmine_after_plan_status_name)
+                    priority_id = self.redmine_client.get_issue_priority_id_by_name(self.settings.redmine_after_plan_priority_name)
                     self.redmine_client.update_issue(
                         issue.id,
                         notes=markdown,
-                        status_id=self.redmine_client.get_issue_status_id_by_name(self.settings.redmine_after_plan_status_name),
+                        status_id=status_id,
                         done_ratio=self.settings.redmine_after_plan_done_ratio,
-                        priority_id=self.redmine_client.get_issue_priority_id_by_name(self.settings.redmine_after_plan_priority_name),
+                        priority_id=priority_id,
                     )
                 else:
                     self.redmine_client.add_issue_comment(issue.id, markdown)
+                if self.settings.redmine_create_subtasks_after_plan:
+                    self._create_subtasks(issue, llm_response.result.subtasks, priority_id)
                 posted = True
                 refreshed_issue = self.redmine_client.get_issue(issue.id)
                 self.state_store.mark_processed(issue.id, refreshed_issue.updated_on, project_identifier, sha256_text(markdown))
@@ -118,3 +124,28 @@ class Analyzer:
                     self.redmine_client.add_issue_comment(issue.id, markdown)
                     return AnalyzeOutput(markdown=markdown, posted=True)
             return AnalyzeOutput(markdown=markdown, posted=False)
+
+    def _create_subtasks(self, issue, subtasks: list[str], priority_id: int | None) -> None:
+        if not issue.project.id:
+            raise ValueError(f"Project id is missing for issue {issue.id}")
+        tracker_id = int(issue.tracker["id"]) if issue.tracker and issue.tracker.get("id") else None
+        if priority_id is None and issue.priority and issue.priority.get("id"):
+            priority_id = int(issue.priority["id"])
+        for subtask in subtasks:
+            subject = f"AI plan: {subtask.strip()}"[:255]
+            description = "\n".join(
+                [
+                    "Generated from AI technical plan.",
+                    "",
+                    f"Parent issue: #{issue.id}",
+                    f"Task: {subtask.strip()}",
+                ]
+            )
+            self.redmine_client.create_issue(
+                project_id=int(issue.project.id),
+                subject=subject,
+                description=description,
+                parent_issue_id=issue.id,
+                tracker_id=tracker_id,
+                priority_id=priority_id,
+            )

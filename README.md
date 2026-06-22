@@ -5,6 +5,7 @@
 CLI-agent for Redmine issues. It reads a Redmine issue, resolves its project to a Git repository through `projects.yaml`, updates the local checkout, selects likely relevant files, asks an OpenAI-compatible LLM for a technical plan, and posts that plan back to the same Redmine issue.
 
 The agent only prepares a plan for a human developer. It does not edit the target repository, create branches, run tests in the target project, or open pull requests.
+Optionally, after posting the plan, it can update the Redmine issue status, progress, priority, and create Redmine child issues from the generated subtasks.
 
 ## Demo
 
@@ -15,6 +16,7 @@ This repository includes a local Redmine demo that shows the full MVP workflow:
 3. It maps the Redmine project to a Git repository through `projects.yaml`.
 4. It scans the repository and sends only selected context to the LLM.
 5. It posts a technical implementation plan back to the same Redmine issue.
+6. In the demo configuration, it moves the issue to `In Progress`, sets progress to `50%`, raises priority to `High`, and creates child issues from the generated subtasks.
 
 Recommended portfolio assets:
 
@@ -61,6 +63,7 @@ Edit `.env` and `projects.yaml` before running against a real Redmine instance.
 - `REDMINE_AFTER_PLAN_STATUS_NAME`: status name to set after posting the plan, for example `In Progress`.
 - `REDMINE_AFTER_PLAN_PRIORITY_NAME`: priority name to set after posting the plan, for example `High`.
 - `REDMINE_AFTER_PLAN_DONE_RATIO`: progress percentage to set after posting the plan, for example `50`.
+- `REDMINE_CREATE_SUBTASKS_AFTER_PLAN`: whether generated subtasks should be created as Redmine child issues.
 
 ## projects.yaml Configuration
 
@@ -130,6 +133,7 @@ python -m app.main analyze --issue-id 1
 ```
 
 Then open `http://localhost:3000/issues/1` and check the generated comment.
+With demo workflow flags enabled, the issue should also move to `In Progress`, show `50%` progress, use `High` priority, and contain generated child issues.
 
 ## Security Notes
 

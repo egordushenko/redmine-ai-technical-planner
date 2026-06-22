@@ -19,6 +19,8 @@ class FakeRedmineClient:
             description="The login callback loses redirect URL.",
             project=Project(id=1, name="Demo", identifier="demo"),
             updated_on="2026-06-22T10:00:00Z",
+            tracker={"id": 1, "name": "Bug"},
+            priority={"id": 2, "name": "Normal"},
         )
         self.refreshed_issue = Issue(
             id=123,
@@ -26,6 +28,8 @@ class FakeRedmineClient:
             description=self.issue.description,
             project=self.issue.project,
             updated_on="2026-06-22T10:01:00Z",
+            tracker=self.issue.tracker,
+            priority=self.issue.priority,
         )
 
     def get_issue(self, issue_id: int) -> Issue:
@@ -53,6 +57,11 @@ class FakeRedmineClient:
         assert name == "High"
         return 3
 
+    def create_issue(self, **fields) -> int:
+        self.created_issues = getattr(self, "created_issues", [])
+        self.created_issues.append(fields)
+        return 1000 + len(self.created_issues)
+
 
 class FakeLLMClient:
     model = "fake"
@@ -72,6 +81,7 @@ class FakeLLMClient:
                     )
                 ],
                 implementation_plan=["Обновить auth flow."],
+                subtasks=["Обновить auth middleware.", "Добавить тест redirect."],
                 verification_steps=["Проверить возврат на исходный URL."],
                 risks=[],
                 analysis_limits=["Dry-run."],
@@ -109,6 +119,7 @@ def _settings(tmp_path: Path) -> Settings:
         redmine_after_plan_status_name="In Progress",
         redmine_after_plan_priority_name="High",
         redmine_after_plan_done_ratio=50,
+        redmine_create_subtasks_after_plan=False,
     )
 
 
@@ -167,3 +178,28 @@ def test_analyze_issue_updates_redmine_fields_after_plan(tmp_path: Path):
     assert redmine.updated_fields["done_ratio"] == 50
     assert redmine.updated_fields["priority_id"] == 3
     assert StateStore(settings.state_db_path).is_already_processed(123, redmine.refreshed_issue.updated_on)
+
+
+def test_analyze_issue_creates_redmine_subtasks_after_plan(tmp_path: Path):
+    repo = tmp_path / "repos" / "demo-repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "auth.py").write_text("def login_callback(): pass\n", encoding="utf-8")
+    settings = _settings(tmp_path)
+    settings = Settings(
+        **{
+            **settings.__dict__,
+            "redmine_update_issue_after_plan": True,
+            "redmine_create_subtasks_after_plan": True,
+        }
+    )
+    redmine = FakeRedmineClient()
+    analyzer = Analyzer(settings, redmine, FakeRepoManager(repo), FakeLLMClient(), StateStore(settings.state_db_path))
+
+    analyzer.analyze_issue(123, dry_run=False)
+
+    assert len(redmine.created_issues) == 2
+    assert redmine.created_issues[0]["parent_issue_id"] == 123
+    assert redmine.created_issues[0]["project_id"] == 1
+    assert redmine.created_issues[0]["tracker_id"] == 1
+    assert redmine.created_issues[0]["priority_id"] == 3
+    assert redmine.created_issues[0]["subject"] == "AI plan: Обновить auth middleware."

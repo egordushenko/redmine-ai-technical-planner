@@ -29,6 +29,7 @@ def test_load_settings_reads_post_plan_issue_update_fields(tmp_path: Path, monke
         "REDMINE_AFTER_PLAN_PRIORITY_NAME",
         "REDMINE_AFTER_PLAN_DONE_RATIO",
         "REDMINE_UPDATE_ISSUE_AFTER_PLAN",
+        "REDMINE_CREATE_SUBTASKS_AFTER_PLAN",
     ):
         monkeypatch.delenv(key, raising=False)
     env_path = tmp_path / ".env"
@@ -39,6 +40,7 @@ def test_load_settings_reads_post_plan_issue_update_fields(tmp_path: Path, monke
                 "REDMINE_AFTER_PLAN_STATUS_NAME=In Progress",
                 "REDMINE_AFTER_PLAN_PRIORITY_NAME=High",
                 "REDMINE_AFTER_PLAN_DONE_RATIO=50",
+                "REDMINE_CREATE_SUBTASKS_AFTER_PLAN=true",
             ]
         ),
         encoding="utf-8",
@@ -50,3 +52,4 @@ def test_load_settings_reads_post_plan_issue_update_fields(tmp_path: Path, monke
     assert settings.redmine_after_plan_status_name == "In Progress"
     assert settings.redmine_after_plan_priority_name == "High"
     assert settings.redmine_after_plan_done_ratio == 50
+    assert settings.redmine_create_subtasks_after_plan

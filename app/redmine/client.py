@@ -70,6 +70,29 @@ class RedmineClient:
         data = self._request("GET", "/enumerations/issue_priorities.json")
         return self._find_id_by_name(data.get("issue_priorities", []), name, "issue priority")
 
+    def create_issue(
+        self,
+        project_id: int,
+        subject: str,
+        description: str,
+        parent_issue_id: int | None = None,
+        tracker_id: int | None = None,
+        priority_id: int | None = None,
+    ) -> int:
+        issue: dict[str, Any] = {
+            "project_id": project_id,
+            "subject": subject,
+            "description": description,
+        }
+        if parent_issue_id is not None:
+            issue["parent_issue_id"] = parent_issue_id
+        if tracker_id is not None:
+            issue["tracker_id"] = tracker_id
+        if priority_id is not None:
+            issue["priority_id"] = priority_id
+        data = self._request("POST", "/issues.json", json={"issue": issue})
+        return int(data["issue"]["id"])
+
     def _find_id_by_name(self, items: list[dict[str, Any]], name: str, label: str) -> int:
         for item in items:
             if str(item.get("name", "")).lower() == name.lower():

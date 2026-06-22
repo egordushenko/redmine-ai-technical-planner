@@ -7,6 +7,7 @@ def test_analysis_result_parses_effort_estimate():
             "task_understanding": "Нужно добавить фильтр.",
             "files_to_change": [],
             "implementation_plan": [],
+            "subtasks": ["Обновить контроллер.", "Добавить тест."],
             "effort_estimate": "2-4 часа.",
             "verification_steps": [],
             "risks": [],
@@ -15,3 +16,4 @@ def test_analysis_result_parses_effort_estimate():
     )
 
     assert result.effort_estimate == "2-4 часа."
+    assert result.subtasks == ["Обновить контроллер.", "Добавить тест."]

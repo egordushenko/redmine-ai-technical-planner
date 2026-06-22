@@ -91,6 +91,39 @@ def test_list_issue_statuses_and_priorities():
     assert client.get_issue_priority_id_by_name("High") == 3
 
 
+def test_create_issue_success():
+    seen_payload = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/issues.json"
+        seen_payload.update(json.loads(request.content))
+        return httpx.Response(201, json={"issue": {"id": 456}})
+
+    client = RedmineClient("https://redmine.test", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+    issue_id = client.create_issue(
+        project_id=10,
+        subject="AI plan: update controller",
+        description="Generated subtask",
+        parent_issue_id=123,
+        tracker_id=1,
+        priority_id=3,
+    )
+
+    assert issue_id == 456
+    assert seen_payload == {
+        "issue": {
+            "project_id": 10,
+            "subject": "AI plan: update controller",
+            "description": "Generated subtask",
+            "parent_issue_id": 123,
+            "tracker_id": 1,
+            "priority_id": 3,
+        }
+    }
+
+
 def test_redmine_error_handling():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, json={"errors": ["boom"]})

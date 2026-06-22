@@ -46,10 +46,11 @@ def format_success_comment(result: AnalysisResult, model_name: str, timestamp: s
             f"### 1. Краткое понимание задачи\n{result.task_understanding or 'Не указано.'}",
             f"### 2. Предполагаемые файлы для изменения\n{files}",
             f"### 3. План реализации\n{_list_items(result.implementation_plan)}",
-            f"### 4. Оценка временных затрат\n{result.effort_estimate or 'Не указано.'}",
-            f"### 5. Что проверить после изменений\n{_bullet_items(result.verification_steps)}",
-            f"### 6. Риски и неопределённости\n{_bullet_items(result.risks)}",
-            f"### 7. Ограничения анализа\n{_bullet_items(result.analysis_limits)}",
+            f"### 4. Подзадачи\n{_list_items(result.subtasks)}",
+            f"### 5. Оценка временных затрат\n{result.effort_estimate or 'Не указано.'}",
+            f"### 6. Что проверить после изменений\n{_bullet_items(result.verification_steps)}",
+            f"### 7. Риски и неопределённости\n{_bullet_items(result.risks)}",
+            f"### 8. Ограничения анализа\n{_bullet_items(result.analysis_limits)}",
             "---\n_Комментарий создан автоматически. Агент не изменял код и не выполнял тесты._",
         ]
     )
