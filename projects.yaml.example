@@ -1,0 +1,5 @@
+projects:
+  demo_project:
+    repo_url: "git@github.com:company/demo-project.git"
+    branch: "main"
+    local_dir: "demo-project"
