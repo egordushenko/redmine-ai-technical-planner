@@ -11,6 +11,9 @@ raise "admin user not found" unless admin
 
 admin.admin = true
 admin.status = Principal::STATUS_ACTIVE if defined?(Principal::STATUS_ACTIVE)
+admin.password = "Admin123!"
+admin.password_confirmation = "Admin123!"
+admin.must_change_passwd = false if admin.respond_to?(:must_change_passwd=)
 admin.save!
 
 project = Project.find_or_initialize_by(identifier: "budgetbot")
