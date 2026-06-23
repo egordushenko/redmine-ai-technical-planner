@@ -7,6 +7,23 @@ CLI-agent for Redmine issues. It reads a Redmine issue, resolves its project to 
 The agent only prepares a plan for a human developer. It does not edit the target repository, create branches, run tests in the target project, or open pull requests.
 Optionally, after posting the plan, it can update the Redmine issue status, progress, priority, estimated time, and create Redmine child issues from the generated subtasks.
 
+## Why It Matters
+
+This project demonstrates a practical AI automation pattern for engineering teams:
+turning vague Redmine tickets into structured technical plans using repository-aware context selection.
+
+It is not a code-generation bot. It is a planning assistant that reduces the initial analysis time before a developer starts implementation.
+
+## Architecture
+```mermaid
+flowchart LR
+    A[Redmine Issue] --> B[Project Mapping]
+    B --> C[Git Repository]
+    C --> D[Context Selection]
+    D --> E[LLM Technical Plan]
+    E --> F[Redmine Comment]
+    E --> G[Status / Estimate / Subtasks]
+```
 ## Demo
 
 This repository includes a local Redmine demo that shows the full MVP workflow:
@@ -20,13 +37,23 @@ This repository includes a local Redmine demo that shows the full MVP workflow:
 
 Recommended portfolio assets:
 
-- `docs/assets/01-redmine-issue-before.png`: Redmine issue before running the agent.
-- `docs/assets/02-cli-run.png`: CLI execution.
-- `docs/assets/03-redmine-issue-after.png`: Redmine issue after analysis with updated status, priority, progress, estimated time, and child issues.
-- `docs/assets/04-redmine-ai-comment-1.png`: first part of the generated AI technical plan.
-- `docs/assets/05-redmine-ai-comment-2.png`: second part of the generated AI technical plan.
+Screenshots below show the issue before analysis, CLI execution, and the updated Redmine issue after the AI-generated plan was posted.
 
-See [docs/demo.md](docs/demo.md) for the capture checklist and demo script.
+## Demo Screenshots
+
+### Before
+![Redmine issue before](docs/assets/01-redmine-issue-before.png)
+
+### CLI run
+![CLI run](docs/assets/02-cli-run.png)
+
+### After
+![Redmine issue after](docs/assets/03-redmine-issue-after.png)
+
+### Generated AI Plan
+![AI technical plan part 1](docs/assets/04-redmine-ai-comment-1.png)
+
+![AI technical plan part 2](docs/assets/05-redmine-ai-comment-2.png)
 
 ## MVP Limitations
 
