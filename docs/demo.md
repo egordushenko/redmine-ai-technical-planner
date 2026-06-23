@@ -8,7 +8,7 @@ A developer receives a Redmine issue asking to add a category filter to the Budg
 
 ## Capture Checklist
 
-Save screenshots and video in `docs/assets/`.
+Save screenshots in `docs/assets/`.
 
 1. `01-redmine-issue-before.png`
    Show `http://localhost:3000/issues/1` before running the agent. The issue should contain the feature request and no AI technical plan comment yet.
@@ -24,21 +24,14 @@ Save screenshots and video in `docs/assets/`.
 
 The terminal should show CLI progress/log lines for Redmine access, repository scanning, LLM analysis, and successful completion. Do not show `.env` or API keys.
 
-3. `03-redmine-ai-comment.png`
-   Refresh the Redmine issue and show the generated `AI technical plan` comment with likely files, implementation steps, verification steps, risks, and analysis limits.
+3. `03-redmine-issue-after.png`
+   Refresh the Redmine issue and show the updated status, priority, progress, estimated time, and child issues.
 
-4. `04-redmine-subtasks.png`
-   Show the issue metadata after analysis: status `In Progress`, priority `High`, progress `50%`, and generated child issues under the parent task.
+4. `04-redmine-ai-comment-1.png`
+   Show the first part of the generated `AI technical plan` comment with likely files and implementation steps.
 
-5. `demo.mp4`
-   Record a 60-90 second walkthrough:
-
-   - Start on the Redmine issue.
-   - Show that the task has no generated plan.
-   - Run the CLI command.
-   - Return to Redmine and refresh.
-   - Show the generated technical plan.
-   - Show the generated child issues and updated issue status.
+5. `05-redmine-ai-comment-2.png`
+   Show the second part of the generated `AI technical plan` comment with subtasks, estimate, verification steps, risks, and analysis limits.
 
 ## Demo Script
 

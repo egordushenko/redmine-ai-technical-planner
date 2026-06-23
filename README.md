@@ -22,8 +22,9 @@ Recommended portfolio assets:
 
 - `docs/assets/01-redmine-issue-before.png`: Redmine issue before running the agent.
 - `docs/assets/02-cli-run.png`: CLI execution.
-- `docs/assets/03-redmine-ai-comment.png`: generated AI technical plan in Redmine.
-- `docs/assets/demo.mp4`: 60-90 second walkthrough video.
+- `docs/assets/03-redmine-issue-after.png`: Redmine issue after analysis with updated status, priority, progress, estimated time, and child issues.
+- `docs/assets/04-redmine-ai-comment-1.png`: first part of the generated AI technical plan.
+- `docs/assets/05-redmine-ai-comment-2.png`: second part of the generated AI technical plan.
 
 See [docs/demo.md](docs/demo.md) for the capture checklist and demo script.
 
