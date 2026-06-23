@@ -5,7 +5,7 @@
 CLI-agent for Redmine issues. It reads a Redmine issue, resolves its project to a Git repository through `projects.yaml`, updates the local checkout, selects likely relevant files, asks an OpenAI-compatible LLM for a technical plan, and posts that plan back to the same Redmine issue.
 
 The agent only prepares a plan for a human developer. It does not edit the target repository, create branches, run tests in the target project, or open pull requests.
-Optionally, after posting the plan, it can update the Redmine issue status, progress, priority, and create Redmine child issues from the generated subtasks.
+Optionally, after posting the plan, it can update the Redmine issue status, progress, priority, estimated time, and create Redmine child issues from the generated subtasks.
 
 ## Demo
 
@@ -16,7 +16,7 @@ This repository includes a local Redmine demo that shows the full MVP workflow:
 3. It maps the Redmine project to a Git repository through `projects.yaml`.
 4. It scans the repository and sends only selected context to the LLM.
 5. It posts a technical implementation plan back to the same Redmine issue.
-6. In the demo configuration, it moves the issue to `In Progress`, sets progress to `50%`, raises priority to `High`, and creates child issues from the generated subtasks.
+6. In the demo configuration, it moves the issue to `In Progress`, sets progress to `50%`, raises priority to `High`, fills estimated time, and creates child issues from the generated subtasks.
 
 Recommended portfolio assets:
 
@@ -60,7 +60,7 @@ Edit `.env` and `projects.yaml` before running against a real Redmine instance.
 - `MAX_TOTAL_CONTEXT_CHARS`: total repository context cap.
 - `STATE_DB_PATH`: SQLite state path.
 - `POST_ERRORS_TO_REDMINE`: whether analysis errors should be posted to Redmine.
-- `REDMINE_UPDATE_ISSUE_AFTER_PLAN`: whether successful analysis should update status, progress, and priority.
+- `REDMINE_UPDATE_ISSUE_AFTER_PLAN`: whether successful analysis should update status, progress, priority, and estimated time.
 - `REDMINE_AFTER_PLAN_STATUS_NAME`: status name to set after posting the plan, for example `In Progress`.
 - `REDMINE_AFTER_PLAN_PRIORITY_NAME`: priority name to set after posting the plan, for example `High`.
 - `REDMINE_AFTER_PLAN_DONE_RATIO`: progress percentage to set after posting the plan, for example `50`.
@@ -146,7 +146,7 @@ python -m app.main analyze --issue-id 1
 ```
 
 Then open `http://localhost:3000/issues/1` and check the generated comment.
-With demo workflow flags enabled, the issue should also move to `In Progress`, show `50%` progress, use `High` priority, and contain generated child issues.
+With demo workflow flags enabled, the issue should also move to `In Progress`, show `50%` progress, use `High` priority, fill estimated time, and contain generated child issues.
 
 ## Security Notes
 
@@ -154,7 +154,7 @@ With demo workflow flags enabled, the issue should also move to `In Progress`, s
 - Secret-like files such as `.env`, private keys, token files, lock files, and binary assets are excluded from LLM context.
 - API keys and tokens are not logged intentionally.
 - By default, the agent only adds Redmine `notes`.
-- Status, progress, priority, and child issue creation are enabled only through explicit env flags.
+- Status, progress, priority, estimated time, and child issue creation are enabled only through explicit env flags.
 - The agent does not edit code, create branches, create commits, or open pull requests.
 
 ## Development

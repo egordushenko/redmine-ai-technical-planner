@@ -111,6 +111,7 @@ class Analyzer:
                         status_id=status_id,
                         done_ratio=self.settings.redmine_after_plan_done_ratio,
                         priority_id=priority_id,
+                        estimated_hours=_estimate_hours(result.effort_estimate),
                     )
                 else:
                     self.redmine_client.add_issue_comment(issue.id, markdown)
@@ -234,3 +235,14 @@ def _derive_effort_estimate(result: AnalysisResult) -> str:
     if complexity_score <= 5:
         return "4-8 часов на реализацию, тесты и проверку сценария."
     return "1-2 рабочих дня на реализацию, тесты и регрессионную проверку."
+
+
+def _estimate_hours(value: str) -> float | None:
+    text = value.lower().replace(",", ".")
+    numbers = [float(match.group(0)) for match in re.finditer(r"\d+(?:\.\d+)?", text)]
+    if not numbers:
+        return None
+    estimate = sum(numbers[:2]) / min(len(numbers), 2)
+    if "дн" in text or "day" in text:
+        estimate *= 8
+    return round(estimate, 2)

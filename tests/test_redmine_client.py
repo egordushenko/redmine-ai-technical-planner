@@ -72,9 +72,9 @@ def test_update_issue_with_notes_and_fields():
 
     client = RedmineClient("https://redmine.test", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
 
-    client.update_issue(123, notes="hello", status_id=2, done_ratio=50, priority_id=3)
+    client.update_issue(123, notes="hello", status_id=2, done_ratio=50, priority_id=3, estimated_hours=3.0)
 
-    assert seen_payload == {"issue": {"notes": "hello", "status_id": 2, "done_ratio": 50, "priority_id": 3}}
+    assert seen_payload == {"issue": {"notes": "hello", "status_id": 2, "done_ratio": 50, "priority_id": 3, "estimated_hours": 3.0}}
 
 
 def test_list_issue_statuses_and_priorities():

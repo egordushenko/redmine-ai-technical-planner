@@ -50,6 +50,7 @@ class RedmineClient:
         status_id: int | None = None,
         done_ratio: int | None = None,
         priority_id: int | None = None,
+        estimated_hours: float | None = None,
     ) -> None:
         issue: dict[str, Any] = {}
         if notes is not None:
@@ -60,6 +61,8 @@ class RedmineClient:
             issue["done_ratio"] = done_ratio
         if priority_id is not None:
             issue["priority_id"] = priority_id
+        if estimated_hours is not None:
+            issue["estimated_hours"] = estimated_hours
         self._request("PUT", f"/issues/{issue_id}.json", json={"issue": issue})
 
     def get_issue_status_id_by_name(self, name: str) -> int:

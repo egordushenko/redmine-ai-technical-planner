@@ -255,6 +255,7 @@ def test_analyze_issue_updates_redmine_fields_after_plan(tmp_path: Path):
     assert redmine.updated_fields["status_id"] == 2
     assert redmine.updated_fields["done_ratio"] == 50
     assert redmine.updated_fields["priority_id"] == 3
+    assert redmine.updated_fields["estimated_hours"] == 3.0
     assert StateStore(settings.state_db_path).is_already_processed(123, redmine.refreshed_issue.updated_on)
 
 
@@ -378,3 +379,4 @@ def test_analyze_issue_derives_demo_fields_when_model_omits_them(tmp_path: Path)
     assert "Run project tests" in output.markdown
     assert len(redmine.created_issues) == 3
     assert redmine.created_issues[0]["subject"] == "Update auth middleware."
+    assert redmine.updated_fields["estimated_hours"] == 3.0
