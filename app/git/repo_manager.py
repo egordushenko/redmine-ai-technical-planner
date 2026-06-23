@@ -7,8 +7,14 @@ from typing import Any
 
 import yaml
 
+from app.utils.text import redact_secret_values
+
 
 class MissingProjectMappingError(KeyError):
+    pass
+
+
+class GitCommandError(RuntimeError):
     pass
 
 
@@ -54,4 +60,9 @@ class RepoManager:
         return local_path
 
     def _run_git(self, args: list[str], cwd: Path) -> None:
-        subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
+        try:
+            subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as exc:
+            command = "git " + " ".join(redact_secret_values(str(arg)) for arg in args)
+            stderr = redact_secret_values(exc.stderr or exc.stdout or "")
+            raise GitCommandError(f"{command} failed in {cwd}: {stderr.strip()}") from exc

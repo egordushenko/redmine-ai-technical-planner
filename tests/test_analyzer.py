@@ -12,6 +12,8 @@ from app.storage.state import StateStore
 class FakeRedmineClient:
     def __init__(self):
         self.comments: list[tuple[int, str]] = []
+        self.created_issues: list[dict] = []
+        self.child_issues: list[Issue] = []
         self._return_refreshed_issue = False
         self.issue = Issue(
             id=123,
@@ -58,9 +60,12 @@ class FakeRedmineClient:
         return 3
 
     def create_issue(self, **fields) -> int:
-        self.created_issues = getattr(self, "created_issues", [])
         self.created_issues.append(fields)
         return 1000 + len(self.created_issues)
+
+    def list_child_issues(self, parent_issue_id: int) -> list[Issue]:
+        assert parent_issue_id == 123
+        return self.child_issues
 
 
 class FakeLLMClient:
@@ -97,6 +102,51 @@ class FakeRepoManager:
     def ensure_repo(self, project_identifier: str) -> Path:
         assert project_identifier == "demo"
         return self.repo_path
+
+
+class FakeUnstructuredLLMClient:
+    def analyze(self, issue_context: str, repo_context: str) -> LLMResponse:
+        return LLMResponse(
+            result=AnalysisResult(
+                task_understanding="Structured parsing failed.",
+                files_to_change=[],
+                implementation_plan=[],
+                verification_steps=[],
+                risks=["raw fallback"],
+                analysis_limits=["invalid json"],
+                raw_text="not json",
+                structured=False,
+            ),
+            latency_seconds=0.01,
+        )
+
+
+class FakeHallucinatedPathLLMClient:
+    def analyze(self, issue_context: str, repo_context: str) -> LLMResponse:
+        return LLMResponse(
+            result=AnalysisResult(
+                task_understanding="Fix login redirect.",
+                files_to_change=[
+                    FileChangePlan(
+                        path="src/auth.py",
+                        relevance_reason="Selected context file.",
+                        suggested_changes=["Patch callback."],
+                        confidence="high",
+                    ),
+                    FileChangePlan(
+                        path="src/not_in_context.py",
+                        relevance_reason="Hallucinated file.",
+                        suggested_changes=["Patch it."],
+                        confidence="medium",
+                    ),
+                ],
+                implementation_plan=["Patch callback."],
+                verification_steps=["Run tests."],
+                risks=[],
+                analysis_limits=[],
+            ),
+            latency_seconds=0.01,
+        )
 
 
 def _settings(tmp_path: Path) -> Settings:
@@ -202,4 +252,71 @@ def test_analyze_issue_creates_redmine_subtasks_after_plan(tmp_path: Path):
     assert redmine.created_issues[0]["project_id"] == 1
     assert redmine.created_issues[0]["tracker_id"] == 1
     assert redmine.created_issues[0]["priority_id"] == 3
-    assert redmine.created_issues[0]["subject"] == "AI plan: Обновить auth middleware."
+    assert redmine.created_issues[0]["subject"] == "Обновить auth middleware."
+
+
+def test_analyze_issue_does_not_update_fields_or_create_subtasks_for_unstructured_fallback(tmp_path: Path):
+    repo = tmp_path / "repos" / "demo-repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "auth.py").write_text("def login_callback(): pass\n", encoding="utf-8")
+    settings = _settings(tmp_path)
+    settings = Settings(
+        **{
+            **settings.__dict__,
+            "redmine_update_issue_after_plan": True,
+            "redmine_create_subtasks_after_plan": True,
+        }
+    )
+    redmine = FakeRedmineClient()
+    analyzer = Analyzer(settings, redmine, FakeRepoManager(repo), FakeUnstructuredLLMClient(), StateStore(settings.state_db_path))
+
+    output = analyzer.analyze_issue(123, dry_run=False)
+
+    assert output.posted
+    assert not hasattr(redmine, "updated_fields")
+    assert not redmine.created_issues
+    assert redmine.comments
+
+
+def test_analyze_issue_excludes_hallucinated_file_paths_from_comment(tmp_path: Path):
+    repo = tmp_path / "repos" / "demo-repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "auth.py").write_text("def login_callback(): pass\n", encoding="utf-8")
+    settings = _settings(tmp_path)
+    redmine = FakeRedmineClient()
+    analyzer = Analyzer(settings, redmine, FakeRepoManager(repo), FakeHallucinatedPathLLMClient(), StateStore(settings.state_db_path))
+
+    output = analyzer.analyze_issue(123, dry_run=True)
+
+    assert "src/auth.py" in output.markdown
+    assert "src/not_in_context.py" not in output.markdown
+    assert "outside the provided repository context" in output.markdown
+
+
+def test_analyze_issue_skips_duplicate_subtasks(tmp_path: Path):
+    repo = tmp_path / "repos" / "demo-repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "auth.py").write_text("def login_callback(): pass\n", encoding="utf-8")
+    settings = _settings(tmp_path)
+    settings = Settings(
+        **{
+            **settings.__dict__,
+            "redmine_update_issue_after_plan": True,
+            "redmine_create_subtasks_after_plan": True,
+        }
+    )
+    redmine = FakeRedmineClient()
+    redmine.child_issues = [
+        Issue(
+            id=200,
+            subject="Обновить auth middleware.",
+            description="Existing child",
+            project=redmine.issue.project,
+            updated_on="2026-06-22T10:00:00Z",
+        )
+    ]
+    analyzer = Analyzer(settings, redmine, FakeRepoManager(repo), FakeLLMClient(), StateStore(settings.state_db_path))
+
+    analyzer.analyze_issue(123, dry_run=False)
+
+    assert len(redmine.created_issues) == 1

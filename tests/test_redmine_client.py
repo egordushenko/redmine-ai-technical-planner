@@ -124,6 +124,34 @@ def test_create_issue_success():
     }
 
 
+def test_list_child_issues_success():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/issues.json"
+        assert request.url.params["parent_id"] == "123"
+        assert request.url.params["status_id"] == "*"
+        return httpx.Response(
+            200,
+            json={
+                "issues": [
+                    {
+                        "id": 456,
+                        "subject": "Update controller",
+                        "project": {"id": 10, "name": "Demo", "identifier": "demo"},
+                        "updated_on": "2026-06-22T10:00:00Z",
+                    }
+                ]
+            },
+        )
+
+    client = RedmineClient("https://redmine.test", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+
+    issues = client.list_child_issues(123)
+
+    assert len(issues) == 1
+    assert issues[0].subject == "Update controller"
+
+
 def test_redmine_error_handling():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, json={"errors": ["boom"]})

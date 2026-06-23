@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from app.config import load_settings
+from app.config import load_settings, validate_settings
 from app.git.repo_manager import RepoManager
 from app.llm.client import LLMClient
 from app.planner.analyzer import Analyzer
@@ -14,6 +14,9 @@ from app.utils.logging import configure_logging
 
 def build_analyzer() -> Analyzer:
     settings = load_settings()
+    errors = validate_settings(settings)
+    if errors:
+        raise SystemExit("Configuration error:\n- " + "\n- ".join(errors))
     configure_logging(settings.log_level)
     return Analyzer(
         settings=settings,

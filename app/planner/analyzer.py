@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
 from app.code_index.context_builder import build_issue_context, build_repo_context
-from app.code_index.scanner import build_repo_tree, list_source_files
+from app.code_index.scanner import build_repo_tree, collect_important_files, list_source_files
 from app.code_index.search import extract_keywords, score_files
 from app.config import Settings
 from app.git.repo_manager import MissingProjectMappingError, RepoManager
 from app.llm.client import LLMClient
+from app.llm.schemas import AnalysisResult
 from app.planner.formatter import format_error_comment, format_success_comment
-from app.redmine.client import RedmineClient
+from app.redmine.client import RedmineClient, RedmineError
 from app.storage.state import StateStore
 from app.utils.text import sha256_text
 
@@ -89,16 +91,19 @@ class Analyzer:
                 self.settings.max_total_context_chars,
             )
             llm_response = self.llm_client.analyze(build_issue_context(issue), repo_context)
+            allowed_paths = {item.relative_path for item in selected}
+            allowed_paths.update(collect_important_files(repo_path).keys())
+            result = _filter_files_to_context(llm_response.result, allowed_paths)
             logger.info("llm analysis completed", extra={"issue_id": issue.id, "llm_latency": llm_response.latency_seconds})
             timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-            markdown = format_success_comment(llm_response.result, self.settings.llm_model, timestamp)
+            markdown = format_success_comment(result, self.settings.llm_model, timestamp)
             posted = False
             if not dry_run:
                 status_id = None
                 priority_id = None
-                if self.settings.redmine_update_issue_after_plan:
-                    status_id = self.redmine_client.get_issue_status_id_by_name(self.settings.redmine_after_plan_status_name)
-                    priority_id = self.redmine_client.get_issue_priority_id_by_name(self.settings.redmine_after_plan_priority_name)
+                if result.structured and self.settings.redmine_update_issue_after_plan:
+                    status_id = self._resolve_status_id()
+                    priority_id = self._resolve_priority_id()
                     self.redmine_client.update_issue(
                         issue.id,
                         notes=markdown,
@@ -108,8 +113,8 @@ class Analyzer:
                     )
                 else:
                     self.redmine_client.add_issue_comment(issue.id, markdown)
-                if self.settings.redmine_create_subtasks_after_plan:
-                    self._create_subtasks(issue, llm_response.result.subtasks, priority_id)
+                if result.structured and self.settings.redmine_create_subtasks_after_plan:
+                    self._create_subtasks(issue, result.subtasks, priority_id)
                 posted = True
                 refreshed_issue = self.redmine_client.get_issue(issue.id)
                 self.state_store.mark_processed(issue.id, refreshed_issue.updated_on, project_identifier, sha256_text(markdown))
@@ -125,14 +130,36 @@ class Analyzer:
                     return AnalyzeOutput(markdown=markdown, posted=True)
             return AnalyzeOutput(markdown=markdown, posted=False)
 
+    def _resolve_status_id(self) -> int | None:
+        try:
+            return self.redmine_client.get_issue_status_id_by_name(self.settings.redmine_after_plan_status_name)
+        except RedmineError:
+            logger.warning("redmine status was not resolved; status update skipped", exc_info=True)
+            return None
+
+    def _resolve_priority_id(self) -> int | None:
+        try:
+            return self.redmine_client.get_issue_priority_id_by_name(self.settings.redmine_after_plan_priority_name)
+        except RedmineError:
+            logger.warning("redmine priority was not resolved; priority update skipped", exc_info=True)
+            return None
+
     def _create_subtasks(self, issue, subtasks: list[str], priority_id: int | None) -> None:
         if not issue.project.id:
-            raise ValueError(f"Project id is missing for issue {issue.id}")
+            logger.warning("project id is missing; subtask creation skipped", extra={"issue_id": issue.id})
+            return
         tracker_id = int(issue.tracker["id"]) if issue.tracker and issue.tracker.get("id") else None
         if priority_id is None and issue.priority and issue.priority.get("id"):
             priority_id = int(issue.priority["id"])
+        existing_subjects = set()
+        try:
+            existing_subjects = {_normalize_subject(child.subject) for child in self.redmine_client.list_child_issues(issue.id)}
+        except Exception:
+            logger.warning("could not load existing child issues; duplicate subtask check skipped", exc_info=True)
         for subtask in subtasks:
-            subject = f"AI plan: {subtask.strip()}"[:255]
+            subject = subtask.strip()[:255]
+            if not subject or _normalize_subject(subject) in existing_subjects:
+                continue
             description = "\n".join(
                 [
                     "Generated from AI technical plan.",
@@ -141,11 +168,35 @@ class Analyzer:
                     f"Task: {subtask.strip()}",
                 ]
             )
-            self.redmine_client.create_issue(
-                project_id=int(issue.project.id),
-                subject=subject,
-                description=description,
-                parent_issue_id=issue.id,
-                tracker_id=tracker_id,
-                priority_id=priority_id,
-            )
+            try:
+                self.redmine_client.create_issue(
+                    project_id=int(issue.project.id),
+                    subject=subject,
+                    description=description,
+                    parent_issue_id=issue.id,
+                    tracker_id=tracker_id,
+                    priority_id=priority_id,
+                )
+                existing_subjects.add(_normalize_subject(subject))
+            except Exception:
+                logger.warning("redmine subtask creation failed", extra={"issue_id": issue.id, "subject": subject}, exc_info=True)
+
+
+def _normalize_subject(value: str) -> str:
+    return re.sub(r"\s+", " ", value.strip().lower())
+
+
+def _filter_files_to_context(result: AnalysisResult, allowed_paths: set[str]) -> AnalysisResult:
+    if not result.files_to_change:
+        return result
+    filtered = [item for item in result.files_to_change if item.path in allowed_paths]
+    if len(filtered) == len(result.files_to_change):
+        return result
+    note = "The model suggested file paths outside the provided repository context; those paths were excluded from the final plan."
+    risks = list(result.risks)
+    analysis_limits = list(result.analysis_limits)
+    if note not in risks:
+        risks.append(note)
+    if note not in analysis_limits:
+        analysis_limits.append(note)
+    return replace(result, files_to_change=filtered, risks=risks, analysis_limits=analysis_limits)

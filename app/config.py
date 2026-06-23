@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+PLACEHOLDER_VALUES = {"", "replace_me", "your_key_here", "changeme", "todo"}
+
+
 def _load_env_file(path: Path) -> None:
     if not path.exists():
         return
@@ -23,6 +26,13 @@ def _bool_env(name: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.lower() in {"1", "true", "yes", "on"}
+
+
+def _env_value(name: str, default: str = "") -> str:
+    value = os.getenv(name, default).strip()
+    if value.lower() in PLACEHOLDER_VALUES:
+        return ""
+    return value
 
 
 @dataclass(frozen=True)
@@ -50,12 +60,14 @@ class Settings:
 
 def load_settings(env_path: Path | str = ".env") -> Settings:
     _load_env_file(Path(env_path))
+    openrouter_api_key = _env_value("OPENROUTER_API_KEY")
+    generic_llm_api_key = _env_value("LLM_API_KEY")
     return Settings(
-        redmine_base_url=os.getenv("REDMINE_BASE_URL", "").rstrip("/"),
-        redmine_api_key=os.getenv("REDMINE_API_KEY", ""),
-        llm_base_url=os.getenv("LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
-        llm_api_key=os.getenv("LLM_API_KEY") or os.getenv("OPENROUTER_API_KEY", ""),
-        llm_model=os.getenv("LLM_MODEL", "gpt-4.1-mini"),
+        redmine_base_url=_env_value("REDMINE_BASE_URL").rstrip("/"),
+        redmine_api_key=_env_value("REDMINE_API_KEY"),
+        llm_base_url=_env_value("LLM_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/"),
+        llm_api_key=openrouter_api_key or generic_llm_api_key,
+        llm_model=_env_value("LLM_MODEL", "openai/gpt-4.1-mini"),
         repos_base_dir=Path(os.getenv("REPOS_BASE_DIR", "./repos")),
         bot_signature=os.getenv("BOT_SIGNATURE", "AI technical planner bot"),
         max_files_to_analyze=int(os.getenv("MAX_FILES_TO_ANALYZE", "12")),
@@ -71,3 +83,24 @@ def load_settings(env_path: Path | str = ".env") -> Settings:
         redmine_after_plan_done_ratio=int(os.getenv("REDMINE_AFTER_PLAN_DONE_RATIO", "50")),
         redmine_create_subtasks_after_plan=_bool_env("REDMINE_CREATE_SUBTASKS_AFTER_PLAN", False),
     )
+
+
+def validate_settings(settings: Settings) -> list[str]:
+    errors: list[str] = []
+    if not settings.redmine_base_url:
+        errors.append("REDMINE_BASE_URL is required.")
+    if not settings.redmine_api_key:
+        errors.append("REDMINE_API_KEY is required and must not be a placeholder.")
+    if not settings.llm_api_key:
+        errors.append("OPENROUTER_API_KEY is required for the default setup; LLM_API_KEY may be used as a generic fallback.")
+    if not settings.projects_yaml_path.exists():
+        errors.append(f"projects.yaml not found: {settings.projects_yaml_path}")
+    if settings.max_files_to_analyze <= 0:
+        errors.append("MAX_FILES_TO_ANALYZE must be greater than 0.")
+    if settings.max_chars_per_file <= 0:
+        errors.append("MAX_CHARS_PER_FILE must be greater than 0.")
+    if settings.max_total_context_chars <= 0:
+        errors.append("MAX_TOTAL_CONTEXT_CHARS must be greater than 0.")
+    if settings.redmine_after_plan_done_ratio < 0 or settings.redmine_after_plan_done_ratio > 100:
+        errors.append("REDMINE_AFTER_PLAN_DONE_RATIO must be between 0 and 100.")
+    return errors

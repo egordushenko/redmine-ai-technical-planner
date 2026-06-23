@@ -34,26 +34,34 @@ def _format_file(item: FileChangePlan, index: int) -> str:
     )
 
 
+def _raw_output_block(result: AnalysisResult) -> str | None:
+    if result.structured or not result.raw_text:
+        return None
+    return "### Raw model output\n```text\n" + result.raw_text[:8000] + "\n```"
+
+
 def format_success_comment(result: AnalysisResult, model_name: str, timestamp: str) -> str:
     if result.files_to_change:
         files = "\n".join(_format_file(item, idx) for idx, item in enumerate(result.files_to_change, start=1))
     else:
         files = "Не удалось уверенно определить файлы для изменения."
-    return "\n\n".join(
-        [
-            "🤖 **AI technical plan**",
-            f"**Статус анализа:** успешно  \n**Модель:** `{model_name}`  \n**Дата:** `{timestamp}`",
-            f"### 1. Краткое понимание задачи\n{result.task_understanding or 'Не указано.'}",
-            f"### 2. Предполагаемые файлы для изменения\n{files}",
-            f"### 3. План реализации\n{_list_items(result.implementation_plan)}",
-            f"### 4. Подзадачи\n{_list_items(result.subtasks)}",
-            f"### 5. Оценка временных затрат\n{result.effort_estimate or 'Не указано.'}",
-            f"### 6. Что проверить после изменений\n{_bullet_items(result.verification_steps)}",
-            f"### 7. Риски и неопределённости\n{_bullet_items(result.risks)}",
-            f"### 8. Ограничения анализа\n{_bullet_items(result.analysis_limits)}",
-            "---\n_Комментарий создан автоматически. Агент не изменял код и не выполнял тесты._",
-        ]
-    )
+    sections = [
+        "🤖 **AI technical plan**",
+        f"**Статус анализа:** успешно  \n**Модель:** `{model_name}`  \n**Дата:** `{timestamp}`",
+        f"### 1. Краткое понимание задачи\n{result.task_understanding or 'Не указано.'}",
+        f"### 2. Предполагаемые файлы для изменения\n{files}",
+        f"### 3. План реализации\n{_list_items(result.implementation_plan)}",
+        f"### 4. Подзадачи\n{_list_items(result.subtasks)}",
+        f"### 5. Оценка временных затрат\n{result.effort_estimate or 'Не указано.'}",
+        f"### 6. Что проверить после изменений\n{_bullet_items(result.verification_steps)}",
+        f"### 7. Риски и неопределённости\n{_bullet_items(result.risks)}",
+        f"### 8. Ограничения анализа\n{_bullet_items(result.analysis_limits)}",
+    ]
+    raw_block = _raw_output_block(result)
+    if raw_block:
+        sections.append(raw_block)
+    sections.append("---\n_Комментарий создан автоматически. Агент не изменял код и не выполнял тесты._")
+    return "\n\n".join(sections)
 
 
 def format_error_comment(reason: str, action: str = "Проверьте конфигурацию и повторите анализ.") -> str:

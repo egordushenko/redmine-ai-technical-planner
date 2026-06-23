@@ -51,7 +51,8 @@ Edit `.env` and `projects.yaml` before running against a real Redmine instance.
 - `REDMINE_BASE_URL`: Redmine base URL.
 - `REDMINE_API_KEY`: Redmine API key for the bot user.
 - `LLM_BASE_URL`: OpenAI-compatible API base URL.
-- `LLM_API_KEY`: LLM API key.
+- `OPENROUTER_API_KEY`: primary LLM API key for the default OpenRouter setup.
+- `LLM_API_KEY`: optional generic fallback key for another OpenAI-compatible provider.
 - `LLM_MODEL`: model name.
 - `REPOS_BASE_DIR`: directory for local repository checkouts.
 - `MAX_FILES_TO_ANALYZE`: candidate files sent to the LLM.
@@ -76,6 +77,18 @@ projects:
 ```
 
 The key under `projects` must match Redmine `project.identifier`.
+
+## LLM Provider
+
+OpenRouter is the default provider in this MVP:
+
+```env
+LLM_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_API_KEY=replace_me
+LLM_MODEL=openai/gpt-4.1-mini
+```
+
+`OPENROUTER_API_KEY` is used first. `LLM_API_KEY` is only a generic fallback for another OpenAI-compatible provider.
 
 ## Run Single Issue Analysis
 
@@ -140,7 +153,9 @@ With demo workflow flags enabled, the issue should also move to `In Progress`, s
 - Issue text is treated as untrusted input.
 - Secret-like files such as `.env`, private keys, token files, lock files, and binary assets are excluded from LLM context.
 - API keys and tokens are not logged intentionally.
-- Redmine updates only add `notes`; status, assignee, tracker, and priority are not changed.
+- By default, the agent only adds Redmine `notes`.
+- Status, progress, priority, and child issue creation are enabled only through explicit env flags.
+- The agent does not edit code, create branches, create commits, or open pull requests.
 
 ## Development
 

@@ -49,19 +49,47 @@ def build_repo_context(
     max_chars_per_file: int,
     max_total_context_chars: int,
 ) -> str:
-    parts: list[str] = ["<repo_summary>", repo_tree, "</repo_summary>"]
+    parts: list[str] = []
+    remaining = max_total_context_chars
+    truncated = False
+
+    def append_part(part: str) -> bool:
+        nonlocal remaining, truncated
+        separator_len = 1 if parts else 0
+        needed = len(part) + separator_len
+        if needed <= remaining:
+            parts.append(part)
+            remaining -= needed
+            return True
+        marker = "...[truncated due to context budget]"
+        available = max(0, remaining - separator_len - len(marker))
+        if available > 0:
+            parts.append(part[:available] + marker)
+        elif remaining >= len(marker) + separator_len:
+            parts.append(marker)
+        truncated = True
+        remaining = 0
+        return False
+
+    for part in ("<repo_summary>", repo_tree, "</repo_summary>"):
+        if not append_part(part):
+            return "\n".join(parts)
     important = collect_important_files(repo_path)
     if important:
-        parts.append("<important_files>")
+        if not append_part("<important_files>"):
+            return "\n".join(parts)
         for path, content in important.items():
-            parts.append(f"File: {path}\n```text\n{content}\n```")
-        parts.append("</important_files>")
-    parts.append("<candidate_files>")
+            if not append_part(f"File: {path}\n```text\n{content}\n```"):
+                return "\n".join(parts)
+        if not append_part("</important_files>"):
+            return "\n".join(parts)
+    if not append_part("<candidate_files>"):
+        return "\n".join(parts)
     for item in selected_files:
         file_context = build_file_context(item.source_file.path, keywords, max_chars_per_file)
         language = item.source_file.path.suffix.lstrip(".") or "text"
         reasons = "; ".join(item.reasons[:5])
-        parts.append(
+        if not append_part(
             "\n".join(
                 [
                     f"File: {item.relative_path}",
@@ -73,7 +101,8 @@ def build_repo_context(
                     "```",
                 ]
             )
-        )
-    parts.append("</candidate_files>")
-    context = "\n".join(parts)
-    return context[:max_total_context_chars]
+        ):
+            return "\n".join(parts)
+    if not truncated:
+        append_part("</candidate_files>")
+    return "\n".join(parts)

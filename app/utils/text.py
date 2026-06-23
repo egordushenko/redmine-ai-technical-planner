@@ -9,4 +9,5 @@ def sha256_text(value: str) -> str:
 
 
 def redact_secret_values(value: str) -> str:
-    return re.sub(r"(?i)(api[_-]?key|token|password|secret)=([^\\s]+)", r"\1=<redacted>", value)
+    value = re.sub(r"(?i)(api[_-]?key|token|password|secret)=([^\s]+)", r"\1=<redacted>", value)
+    return re.sub(r"https://([^:/\s]+):([^@\s]+)@", r"https://<redacted>@", value)

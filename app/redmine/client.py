@@ -93,6 +93,10 @@ class RedmineClient:
         data = self._request("POST", "/issues.json", json={"issue": issue})
         return int(data["issue"]["id"])
 
+    def list_child_issues(self, parent_issue_id: int) -> list[Issue]:
+        data = self._request("GET", "/issues.json", params={"parent_id": parent_issue_id, "status_id": "*"})
+        return [Issue.from_api(raw) for raw in data.get("issues", [])]
+
     def _find_id_by_name(self, items: list[dict[str, Any]], name: str, label: str) -> int:
         for item in items:
             if str(item.get("name", "")).lower() == name.lower():

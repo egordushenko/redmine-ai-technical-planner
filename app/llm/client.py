@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass
+from json import JSONDecodeError
+from typing import Any
 
 import httpx
 
@@ -32,22 +35,23 @@ class LLMClient:
         started = time.perf_counter()
         raw_text = self._chat(prompt)
         try:
-            result = AnalysisResult.from_dict(json.loads(raw_text))
-        except json.JSONDecodeError:
+            result = AnalysisResult.from_dict(_parse_json_object(raw_text))
+        except (JSONDecodeError, ValueError, TypeError, KeyError, AttributeError):
             repaired = self._chat(REPAIR_PROMPT_TEMPLATE.format(raw_text=raw_text))
             try:
-                result = AnalysisResult.from_dict(json.loads(repaired))
-            except json.JSONDecodeError:
+                result = AnalysisResult.from_dict(_parse_json_object(repaired))
+            except (JSONDecodeError, ValueError, TypeError, KeyError, AttributeError):
                 result = AnalysisResult(
-                    task_understanding=raw_text,
+                    task_understanding="Не удалось выполнить структурированный разбор ответа модели.",
                     files_to_change=[],
                     implementation_plan=[],
                     subtasks=[],
                     effort_estimate="Не удалось оценить: LLM вернул невалидный JSON.",
                     verification_steps=[],
-                    risks=["LLM вернул невалидный JSON; опубликован raw fallback."],
+                    risks=["LLM вернул невалидный JSON; опубликован fallback-комментарий."],
                     analysis_limits=["Структурированный разбор недоступен."],
                     raw_text=raw_text,
+                    structured=False,
                 )
         return LLMResponse(result=result, latency_seconds=time.perf_counter() - started)
 
@@ -68,3 +72,42 @@ class LLMClient:
             raise LLMError(f"LLM API error {response.status_code}: {response.text}")
         data = response.json()
         return data["choices"][0]["message"]["content"]
+
+
+def _parse_json_object(text: str) -> dict[str, Any]:
+    if not isinstance(text, str):
+        raise TypeError("LLM response content must be a string")
+    candidates = _json_candidates(text)
+    last_error: Exception | None = None
+    for candidate in candidates:
+        try:
+            data = json.loads(candidate)
+        except JSONDecodeError as exc:
+            last_error = exc
+            continue
+        if not isinstance(data, dict):
+            raise ValueError("LLM JSON response must be an object")
+        return data
+    if last_error:
+        raise last_error
+    raise ValueError("No JSON object found in LLM response")
+
+
+def _json_candidates(text: str) -> list[str]:
+    stripped = text.strip().strip("`").strip()
+    candidates: list[str] = []
+    fence_matches = re.findall(r"```(?:json|JSON)?\s*(.*?)```", text, flags=re.DOTALL)
+    candidates.extend(match.strip() for match in fence_matches if match.strip())
+    if stripped:
+        candidates.append(stripped)
+    first = text.find("{")
+    last = text.rfind("}")
+    if first >= 0 and last > first:
+        candidates.append(text[first : last + 1].strip())
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate not in seen:
+            seen.add(candidate)
+            deduped.append(candidate)
+    return deduped

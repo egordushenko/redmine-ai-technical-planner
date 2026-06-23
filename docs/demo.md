@@ -22,7 +22,7 @@ Save screenshots and video in `docs/assets/`.
    python -m app.main analyze --issue-id 1
    ```
 
-The terminal should show Redmine API requests, repository scanning, the OpenRouter request, and successful completion. Do not show `.env` or API keys.
+The terminal should show CLI progress/log lines for Redmine access, repository scanning, LLM analysis, and successful completion. Do not show `.env` or API keys.
 
 3. `03-redmine-ai-comment.png`
    Refresh the Redmine issue and show the generated `AI technical plan` comment with likely files, implementation steps, verification steps, risks, and analysis limits.
