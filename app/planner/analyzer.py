@@ -94,6 +94,7 @@ class Analyzer:
             allowed_paths = {item.relative_path for item in selected}
             allowed_paths.update(collect_important_files(repo_path).keys())
             result = _filter_files_to_context(llm_response.result, allowed_paths)
+            result = _fill_demo_fallbacks(result)
             logger.info("llm analysis completed", extra={"issue_id": issue.id, "llm_latency": llm_response.latency_seconds})
             timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
             markdown = format_success_comment(result, self.settings.llm_model, timestamp)
@@ -193,10 +194,43 @@ def _filter_files_to_context(result: AnalysisResult, allowed_paths: set[str]) ->
     if len(filtered) == len(result.files_to_change):
         return result
     note = "The model suggested file paths outside the provided repository context; those paths were excluded from the final plan."
-    risks = list(result.risks)
     analysis_limits = list(result.analysis_limits)
-    if note not in risks:
-        risks.append(note)
     if note not in analysis_limits:
         analysis_limits.append(note)
-    return replace(result, files_to_change=filtered, risks=risks, analysis_limits=analysis_limits)
+    return replace(result, files_to_change=filtered, analysis_limits=analysis_limits)
+
+
+def _fill_demo_fallbacks(result: AnalysisResult) -> AnalysisResult:
+    if not result.structured:
+        return result
+    subtasks = result.subtasks or _derive_subtasks(result.implementation_plan)
+    verification_steps = result.verification_steps or _derive_verification_steps(result.implementation_plan)
+    effort_estimate = result.effort_estimate or _derive_effort_estimate(result)
+    return replace(result, subtasks=subtasks, verification_steps=verification_steps, effort_estimate=effort_estimate)
+
+
+def _derive_subtasks(implementation_plan: list[str]) -> list[str]:
+    return [step.strip() for step in implementation_plan if step.strip()]
+
+
+def _derive_verification_steps(implementation_plan: list[str]) -> list[str]:
+    if not implementation_plan:
+        return [
+            "Run project tests.",
+            "Run a smoke check for the changed user flow.",
+            "Check the original Redmine acceptance scenario.",
+        ]
+    return [
+        "Run project tests.",
+        "Run a smoke check for the changed user flow.",
+        "Verify the original issue scenario after implementation.",
+    ]
+
+
+def _derive_effort_estimate(result: AnalysisResult) -> str:
+    complexity_score = len(result.files_to_change) + max(1, len(result.implementation_plan) // 3)
+    if complexity_score <= 2:
+        return "2-4 часа на реализацию и базовую проверку."
+    if complexity_score <= 5:
+        return "4-8 часов на реализацию, тесты и проверку сценария."
+    return "1-2 рабочих дня на реализацию, тесты и регрессионную проверку."

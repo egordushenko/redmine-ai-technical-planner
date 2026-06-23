@@ -149,6 +149,34 @@ class FakeHallucinatedPathLLMClient:
         )
 
 
+class FakeSparseLLMClient:
+    def analyze(self, issue_context: str, repo_context: str) -> LLMResponse:
+        return LLMResponse(
+            result=AnalysisResult(
+                task_understanding="Fix login redirect.",
+                files_to_change=[
+                    FileChangePlan(
+                        path="src/auth.py",
+                        relevance_reason="Selected context file.",
+                        suggested_changes=["Patch callback."],
+                        confidence="high",
+                    )
+                ],
+                implementation_plan=[
+                    "Update auth middleware.",
+                    "Add redirect regression test.",
+                    "Run CLI smoke check.",
+                ],
+                subtasks=[],
+                effort_estimate="",
+                verification_steps=[],
+                risks=[],
+                analysis_limits=[],
+            ),
+            latency_seconds=0.01,
+        )
+
+
 def _settings(tmp_path: Path) -> Settings:
     return Settings(
         redmine_base_url="https://redmine.test",
@@ -291,6 +319,8 @@ def test_analyze_issue_excludes_hallucinated_file_paths_from_comment(tmp_path: P
     assert "src/auth.py" in output.markdown
     assert "src/not_in_context.py" not in output.markdown
     assert "outside the provided repository context" in output.markdown
+    risk_section = output.markdown.split("### 7. Риски и неопределённости", 1)[1].split("### 8.", 1)[0]
+    assert "outside the provided repository context" not in risk_section
 
 
 def test_analyze_issue_skips_duplicate_subtasks(tmp_path: Path):
@@ -320,3 +350,31 @@ def test_analyze_issue_skips_duplicate_subtasks(tmp_path: Path):
     analyzer.analyze_issue(123, dry_run=False)
 
     assert len(redmine.created_issues) == 1
+
+
+def test_analyze_issue_derives_demo_fields_when_model_omits_them(tmp_path: Path):
+    repo = tmp_path / "repos" / "demo-repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "auth.py").write_text("def login_callback(): pass\n", encoding="utf-8")
+    settings = _settings(tmp_path)
+    settings = Settings(
+        **{
+            **settings.__dict__,
+            "redmine_update_issue_after_plan": True,
+            "redmine_create_subtasks_after_plan": True,
+        }
+    )
+    redmine = FakeRedmineClient()
+    analyzer = Analyzer(settings, redmine, FakeRepoManager(repo), FakeSparseLLMClient(), StateStore(settings.state_db_path))
+
+    output = analyzer.analyze_issue(123, dry_run=False)
+
+    assert output.posted
+    assert "### 4. Подзадачи" in output.markdown
+    assert "Update auth middleware." in output.markdown
+    assert "### 5. Оценка временных затрат" in output.markdown
+    assert "2-4 часа" in output.markdown
+    assert "### 6. Что проверить после изменений" in output.markdown
+    assert "Run project tests" in output.markdown
+    assert len(redmine.created_issues) == 3
+    assert redmine.created_issues[0]["subject"] == "Update auth middleware."
